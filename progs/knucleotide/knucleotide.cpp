@@ -1,318 +1,467 @@
-// The Computer Language Benchmarks Game
-// http://benchmarksgame.alioth.debian.org/
+/* The Computer Language Benchmarks Game
+   http://benchmarksgame.alioth.debian.org/
 
-// Copy task division idea from Java entry, contributed by James McIlree
-// Contributed by The Anh Tran
+   Contributed by Andrew Moon
+*/
 
-#include <omp.h>
-#include <sched.h>
 
-#include <algorithm>
-#include <vector>
-#include <iostream>
-#include <sstream>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <cstdlib>
+#include <iostream>
+#include <iomanip>
+#include <vector>
+#include <algorithm>
 
-//#include <ext/hash_map>
-//#include <boost/unordered_map.hpp>
+#include <sched.h>
+#include <pthread.h>
 #include <ext/pb_ds/assoc_container.hpp>
 #include <ext/pb_ds/hash_policy.hpp>
 
-#include <boost/algorithm/string/case_conv.hpp>
-#include <boost/lambda/lambda.hpp>
-#include <boost/lambda/bind.hpp>
-#include <boost/format.hpp>
-#include <boost/foreach.hpp>
-#define foreach BOOST_FOREACH
+typedef unsigned long long u64;
+typedef unsigned int u32;
+typedef signed int s32;
+typedef unsigned short u16;
+typedef unsigned char u8;
+
+using namespace std;
+
+struct CPUs {
+   CPUs() {
+      cpu_set_t cs;
+      CPU_ZERO( &cs );
+      sched_getaffinity( 0, sizeof(cs), &cs );
+      count = 0;
+      for ( size_t i = 0; i < CPU_SETSIZE; i++ )
+         count += CPU_ISSET( i, &cs ) ? 1 : 0;
+      count = std::max( count, u32(1) );
+   }
+
+   u32 count;
+} cpus;
 
 
-typedef unsigned int   uint;
+/*
+   Smart selection of u32 or u64 based on storage needs
 
-int const MAX_CORE = 16;
-uint const SEED = 183; //183 193 405 <= zero collision for hashing algorithm
+   PreferU64 will use u32 if (size == 4 && system = 32bit), otherwise u64.
+*/
 
+template< u32 N > struct TypeSelector;
+template<> struct TypeSelector<4> { enum { bits = 32, }; typedef u32 tint; };
+template<> struct TypeSelector<8> { enum { bits = 64, }; typedef u64 tint; };
 
-// Hash_table key type, with key's length = reading_frame_size
-template <int frm_sz>
-struct Key_T
-{
-   uint   hash_value;
-   char   key[frm_sz +1];
+template< u32 N > struct PreferU64 { 
+   enum { bits = TypeSelector<8>::bits }; 
+   typedef typename TypeSelector<8>::tint tint;
+};
 
-   Key_T()             {   memset(this, 0, sizeof(*this));      }
-   Key_T(Key_T const& k)   {   memcpy(this, &k, sizeof(*this));   }
-   Key_T(char const * str)   {   ReHash (str);   }
+template<> struct PreferU64<4> {
+   enum { selector = sizeof(u32 *) };
+   enum { bits = TypeSelector<selector>::bits }; 
+   typedef TypeSelector<selector>::tint tint;
+};
 
-   void 
-   ReHash(char const *str)
-   {
-      // naive hashing algorithm.
-      hash_value = 0;
+/*
+   DNASource handles enum defs we're interested in and extracting
+   DNA sequences from an -unpacked- DNA stream
 
-      for (int i = 0; i < frm_sz; ++i)
-      {
-         key[i] = str[i];
-         hash_value = (hash_value * SEED) + str[i];
+   Will use 64 bits for the state on 64bit machines, otherwise
+   32/64 bits depending on the size of the DNA sequence
+
+   All reads from the unpacked stream are dword aligned
+
+   left0 = # of nucleotides left in state
+   left1 = # of nucleotides left in the upcoming tstore, lower[1]
+*/
+
+template< u32 N >
+struct DNASource {
+   enum {
+      completedwords = N / 4,
+      partialbytes = N & 3,
+      storagedwords = ( N + 15 ) / 16,
+      storagebytes = storagedwords * 4,
+
+      bits = PreferU64<storagebytes>::bits,
+      bytes = bits / 8,
+      maxsequences = bits / 2,
+      sequencebits = N * 2,
+   };
+   typedef typename TypeSelector<storagebytes>::tint tint;
+   typedef typename PreferU64<storagebytes>::tint tstore;
+
+   DNASource( const char *data, const u32 offset ) : in(data) {
+      const u32 partial = offset & ( maxsequences - 1 );
+      const u32 rshift = partial * 2, lshift = bits - rshift;
+      in += ( offset / maxsequences );
+      pack(0); pack(1);
+      state = ( partial ) ? ( lower[0] >> rshift ) | ( lower[1] << lshift ) : lower[0];
+      left0 = maxsequences;
+      left1 = lshift / 2;
+   }
+
+   void pack( const u32 slot ) {
+      u8 *out = (u8 *)&lower[slot];
+
+      // 00000dd0:00000cc0-00000bb0:00000aa0 -> ddccbbaa
+      for ( u32 i = 0; i < bytes; i++, in += 4 ) {
+         u32 conv = ( *(const u32 *)in >> 1 ) & 0x03030303;
+         *out++ = conv | ( conv >> 6 ) | ( conv >> 12 ) | ( conv >> 18 );
       }
    }
 
-
-   // Hash functor Hash<HKey_T>
-   uint 
-   operator() (const Key_T &k) const   {   return k.hash_value;   }
-
-
-   // Comparison functor equal_to<HKey_T>(Left, Right)
-   bool 
-   operator() (const Key_T &k1, const Key_T &k2) const
-   {
-      if (k1.hash_value == k2.hash_value)
-      {
-         for (int i = 0; i < frm_sz; ++i)
-         {
-            if ( __builtin_expect((k1.key[i] != k2.key[i]), false) )
-            {
-               //++collision;
-               return false;   
-            }
+   inline void getandadvance( tint &out, const u32 increment = N ) {
+      // reload if needed
+      if ( ( N > maxsequences / 2 ) || ( left0 < N ) ) {
+         u32 want = maxsequences - left0;
+         state |= ( lower[1] >> ( ( maxsequences - left1 ) * 2 ) ) << ( left0 * 2 );
+         if ( left1 > want ) {
+            left1 -= want;
+         } else {
+            lower[0] = lower[1];
+            left1 += left0;
+            pack(1); // need more state in lower1
          }
-         return true;
+         if ( left1 != maxsequences )
+            state |= ( lower[1] << ( left1 * 2 ) );
+         left0 = maxsequences;
       }
+
+      // load the nucleotides
+      if ( sequencebits != bits ) {
+         tstore shift = sequencebits, mask = ( tstore(1) << shift ) - 1;
+         out = tint(state & mask);
+      } else {
+         out = tint(state);
+      }
+      state >>= ( increment * 2 );
+      left0 -= increment;
+   }
+
+protected:
+   const char *in;
+   u32 left0, left1;
+   tstore state, lower[2];
+};
+
+/*
+   A packed DNA key. Each nucleotide is packed down to 2 bits (we only have
+   4 to keep track of).
+
+   0000:0xx0 are the bits we want. A,C,G,T and a,c,g,t both map to the same
+   four values with this bitmask, but not in alphabetical order. Convert
+   the key to a string to sort!
+*/
+
+template< u32 N >
+struct Key {
+   typedef typename DNASource<N>::tint tint;
+
+   struct Ops {
+      // hash
+      u32 operator() ( const Key &k ) const {
+         if ( N <= 4 ) {
+            return u32(~k);
+         } else if ( N <= 16 ) {
+            u8 shift = N / 2;
+            return u32(~k + ( ~k >> shift ));
+         } else {
+            u8 shift = N / 2;
+            return u32(~k + ( ~k >> 13 ) + ( ~k >> shift ));
+         }
+      }
+
+      // equals
+      bool operator() ( const Key &a, const Key &b ) const { return ~a == ~b; }
+   };
+
+   Key() {}
+
+   // packing this way isn't efficient, but called rarely
+   Key( const char *in ) : packed(0) {
+      u8 *bytes = (u8 *)&packed;
+      for ( u32 i = 0; i < N; i++ )
+         bytes[i/4] |= ( ( *in++ >> 1 ) & 0x3 ) << ( ( i % 4 ) * 2 );
+   }
+
+   // up to 2 instances active at once
+   const char *tostring() const {
+      static char names[2][N+1], table[4] = { 'A', 'C', 'T', 'G' };
+      static u32 on = 0;
+      u64 bits = packed;
+      on ^= 1;
+      for ( u32 i = 0; i < N; i++, bits >>= 2 )
+         names[on][i] = table[bits & 3];
+      names[on][N] = 0;
+      return names[on];
+   }
+
+   // for sorting
+   bool operator< ( const Key &b ) const {
+      return strcmp( tostring(), b.tostring() ) < 0;
+   }
+
+   // direct access
+   tint &operator~ () { return packed; }
+   const tint &operator~ () const { return packed; }
+
+protected:
+   tint packed;
+};
+
+// hash table wrapper
+template< u32 N >
+   class KeyHash :
+      public __gnu_pbds::cc_hash_table <
+         Key<N>, // key
+         u32, // value
+         typename Key<N>::Ops, // hash
+         typename Key<N>::Ops // equality
+      > {};
+
+static const u32 lengths[] = { 1, 2, 3, 4, 6, 12, 18 }, numLengths = 7;
+static const u32 lineLength = 60;
+
+/*
+   For sequences <= sequentialMax, process them sequentially in one pass
+   instead of splitting them in to multiple tasks
+
+   Things stay fast until 9, where processing sequentially really kills
+   performance for some reason I have no figured out!
+*/
+
+static const u32 sequentialMax = 8;
+
+/*
+   A DNA block to analyze. Requires a single block of memory to
+   hold the block for efficiency. Block starts at 4mb and grows
+   exponentially
+*/
+
+struct Block {
+   Block() : data(NULL), count(0), alloc(4 * 1048576) {
+      data = (char *)realloc( data, alloc );
+   }
+
+   ~Block() { free( data ); }
+
+   // read the block in until the end of the sequence or a new sequence starts
+   void read() {
+      data[lineLength] = -1;
+      while ( fgets_unlocked( data + count, lineLength + 2, stdin ) ) {
+         if ( data[count] == '>' )
+            return;
+         
+         // -1 trick should keep us from calling strlen
+         if ( data[count + lineLength] != 0xa ) {
+            count += u32(strlen( data + count )) - 1;
+            data = (char *)realloc( data, count + 64 * 2 );
+            return;
+         }
+
+         count += lineLength;
+         if ( ( ( count + lineLength ) ) > alloc ) {
+            alloc *= 2;
+            data = (char *)realloc( data, alloc );
+         }
+
+         data[count + lineLength] = -1;
+      }
+   }
+
+   // read lines until we get a match
+   bool untilheader( const char *match ) {
+      size_t len = strlen( match );
+      const u32 *in = (const u32 *)data, *want = (const u32 *)match;
+      while ( fgets_unlocked( data, alloc, stdin ) )
+         if ( ( *in == *want ) && ( memcmp( data, match, len ) == 0 ) )
+            return true;
       return false;
    }
+
+   u32 getcount() const { return count; }
+   char *getdata() { return data; }
+
+protected:
+   char *data;
+   u32 count, alloc;
+};
+
+/*
+   Queue hands out work states to process
+   
+   st holds two u16 values, the current offset in the sequence, and the
+   current length of the sequence
+*/
+
+struct Queue {
+   Queue() : st(0) {}
+
+   bool get( u32 &sequence, u32 &offset ) {
+      while ( true ) {
+         u32 cur = st;
+         if ( ( cur >> 16 ) == numLengths )
+            return false;
+
+         // try to claim the next set
+         if ( __sync_val_compare_and_swap( &st, cur, nextstate( cur ) ) != cur )
+            continue;
+
+         // it's ours
+         sequence = lengths[cur >> 16];
+         offset = cur & 0xffff;
+         return true;
+      }
+   }
+
+   u32 nextstate( u32 cur ) {
+      u16 offset = ( cur & 0xffff ), length = ( cur >> 16 );
+      if ( ( lengths[length] <= sequentialMax ) || ( ++offset == lengths[length] ) ) {
+         offset = 0;
+         length++;
+      }
+      return ( length << 16 ) | offset;
+   }
+
+protected:
+   volatile u32 st;
 };
 
 
-// Game's rule: function to update hashtable
-template <int hash_len, bool MT, typename Input_T, typename HTable_T>
-void 
-calculate_frequency(Input_T const &input, HTable_T& hash_table)
-{
-   hash_table.clear();
-   int   const total_length = static_cast<int>(input.size() - hash_len +1);
+struct Worker {
+   Worker() {}
 
-   typedef typename Input_T::const_pointer   Ite_T;
-   Ite_T const   ite_beg   = &(input[0]);
-   Ite_T const   ite_end   = &(input[0]) + total_length;
+   template< u32 N, class Hash >
+   void process( Hash &hash ) {
+      Key<N> key;
+      DNASource<N> source( block->getdata(), offset );
+      const u32 advance = ( N <= sequentialMax ) ? 1 : N;
+      for ( u32 i = block->getcount() - offset; i >= N; i -= advance ) {
+         source.getandadvance( ~key, advance );
+         hash[key]++;
+      }
+   }
 
-   typename HTable_T::key_type key;
-
-   if (MT)
-   {
-      static int char_done[hash_len] = {0};
-      int const chunk_sz = std::max(512, std::min(1024*1024, total_length / omp_get_num_threads() / 128));
-      int ichunk;
-
-      for(int offset = 0; offset < hash_len; ++offset)
-      {
-         // Fetch task. Each thread hashes a block, which block size = chunk
-         while ( (ichunk = __sync_fetch_and_add(char_done + offset, chunk_sz)) < total_length )
-         {
-            Ite_T ite   = ite_beg + ichunk + offset;
-            Ite_T end   = std::min(ite_beg + ichunk + chunk_sz, ite_end);
-         
-            for (; ite < end; ite += hash_len)
-            {
-               key.ReHash(ite);
-               ++(hash_table[key]);
-            }
+   void run() {
+      while ( workQueue->get( length, offset ) ) {
+         switch ( length ) {
+            case 1: process<1>( hash1 ); break;
+            case 2: process<2>( hash2 ); break;
+            case 3: process<3>( hash3 ); break;
+            case 4: process<4>( hash4 ); break;
+            case 6: process<6>( hash6 ); break;
+            case 12: process<12>( hash12 ); break;
+            case 18: process<18>( hash18 ); break;
+            default: break;
          }
       }
    }
-   else
-   {
-      for(int offset = 0; offset < hash_len; ++offset)
-      {
-         for (Ite_T index = ite_beg + offset; index < ite_end; index += hash_len)
-         {
-            key.ReHash(index);
-            ++(hash_table[key]);
-         }
+
+   void join() { pthread_join( handle, 0 ); }
+   void start( Queue *queue, Block *in ) {
+      workQueue = queue;
+      block = in;
+      pthread_create( &handle, 0, Worker::thread, this );
+   }
+   static void *thread( void *arg ) { ((Worker *)arg)->run(); return 0; }
+
+   pthread_t handle;
+   Block *block;
+   Queue *workQueue;
+   u32 length, offset;
+
+   KeyHash<18> hash18;
+   KeyHash<12> hash12;
+   KeyHash<6> hash6;
+   KeyHash<4> hash4;
+   KeyHash<3> hash3;
+   KeyHash<2> hash2;
+   KeyHash<1> hash1;
+};
+
+template< u32 N, class W > KeyHash<N> &Get( W &w );
+
+template<> KeyHash<1> &Get( Worker &w ) { return w.hash1; }
+template<> KeyHash<2> &Get( Worker &w ) { return w.hash2; }
+template<> KeyHash<3> &Get( Worker &w ) { return w.hash3; }
+template<> KeyHash<4> &Get( Worker &w ) { return w.hash4; }
+template<> KeyHash<6> &Get( Worker &w ) { return w.hash6; }
+template<> KeyHash<12> &Get( Worker &w ) { return w.hash12; }
+template<> KeyHash<18> &Get( Worker &w ) { return w.hash18; }
+
+template< u32 N >
+void printcount( Worker *workers, const char *key ) {
+   Key<N> find( key );
+   u32 count = 0;
+   for ( u32 i = 0; i < cpus.count; i++ )
+      count += Get<N>( workers[i] )[find];
+   cout << count << '\t' << find.tostring() << endl;
+}
+
+template<class T>
+struct CompareFirst {
+   bool operator() ( const T &a, const T &b ) { return a.first < b.first; }
+};
+
+template<class T>
+struct CompareSecond {
+   bool operator() ( const T &a, const T &b ) { return a.second > b.second; }
+};
+
+
+template< u32 N >
+void printfreq( Worker *workers ) {
+   cout.setf( ios::fixed, ios::floatfield );
+   cout.precision( 3 );
+
+   u32 count = 0;
+   KeyHash<N> sum;
+   for ( u32 i = 0; i < cpus.count; i++ ) {
+      KeyHash<N> &hash = Get<N>( workers[i] );
+      typename KeyHash<N>::iterator iter = hash.begin(), end = hash.end();
+      for ( ; iter != end; ++iter ) {
+         count += iter->second;
+         sum[iter->first] += iter->second;
       }
    }
+
+   typedef pair< Key<N>, u32 > sequence;
+   vector<sequence> seqs( sum.begin(), sum.end() );
+   stable_sort( seqs.begin(), seqs.end(), CompareFirst<sequence>() ); // by name
+   stable_sort( seqs.begin(), seqs.end(), CompareSecond<sequence>() ); // by count
+
+   typename vector<sequence>::iterator iter = seqs.begin(), end = seqs.end();
+   for ( ; iter != end; ++iter )
+      cout <<   iter->first.tostring() << " " << (100.0f * iter->second / count) << endl;
+   cout << endl;
 }
 
 
-// Build a hash_table, count all key with hash_len = 1, 2
-// write the code and percentage frequency
-template <int hash_len, typename Input_T>
-void 
-write_frequencies(Input_T const &input, std::ostream &output)
-{
-   typedef Key_T<hash_len>         HKey_T;
+int main( int argc, const char *argv[] ) {
+   Block *block = new Block();
+   if ( !block->untilheader( ">THREE" ) )
+      return -1;
+   block->read();
 
-   //typedef __gnu_cxx::hash_map <
-   //typedef boost::unordered_map <
-   typedef __gnu_pbds::cc_hash_table   <
-                                 HKey_T,   // key type
-                                 uint,   // map type
-                                 HKey_T,   // hash functor
-                                 HKey_T   // equal_to functor
-                              >    HTable_T;
+   Queue workQueue;
+   Worker *workers = new Worker[cpus.count];
+   for ( u32 i = 0; i < cpus.count; i++ )
+      workers[i].start( &workQueue, block );
+   for ( u32 i = 0; i < cpus.count; i++ )
+      workers[i].join();
 
+   printfreq<1>( workers );
+   printfreq<2>( workers );
 
-   static HTable_T hash_table[MAX_CORE];
+   printcount<3>( workers, "ggt" );
+   printcount<4>( workers, "ggta" );
+   printcount<6>( workers, "ggtatt" );
+   printcount<12>( workers, "ggtattttaatt" );
+   printcount<18>( workers, "ggtattttaatttatagt" );
 
-   // parallel hashing. Each thread updates its own hash_table.
-   if (omp_get_num_threads() > 1)
-      calculate_frequency<hash_len, true>(input, hash_table[omp_get_thread_num()]);
-   else
-      calculate_frequency<hash_len, false>(input, hash_table[omp_get_thread_num()]);
+   delete[] workers;
 
-
-   // only the last thread, reaching this code block, to process result
-   static int thread_passed = 0;
-   if (__sync_add_and_fetch(&thread_passed, 1) == omp_get_num_threads())
-   {
-      // merge thread local results to main hash_table
-      HTable_T &merge_table (hash_table[0]);
-
-      for (int i = 1; i < omp_get_num_threads(); ++i)
-      {
-         foreach (typename HTable_T::value_type const & e, hash_table[i])
-            merge_table[e.first] += e.second;
-      }
-      
-   
-      typedef std::pair<HKey_T, uint>   HValue_T;
-      typedef std::vector<HValue_T>    List_T;
-
-      // Copy results from hash_table to list
-      List_T order_table(merge_table.begin(), merge_table.end());
-
-      {
-         // Sort with descending frequency
-         using namespace boost::lambda;
-         std::sort(   order_table.begin(), order_table.end(),
-            ( !(bind(&HValue_T::second, _1) < bind(&HValue_T::second, _2)) )   );
-      }
-
-      float const total_char = static_cast<float>(input.size() - hash_len +1);
-      boost::format fmt("%|1$s| %|2$0.3f|\n");
-
-      foreach(typename List_T::value_type &e, order_table)
-      {
-         e.first.key[hash_len] = 0; // ensure proper null terminated
-         boost::to_upper(e.first.key);
-
-         float percent = static_cast<float>(e.second) * 100.0f / total_char;
-         fmt % e.first.key % percent;
-
-         output << fmt;
-      }
-
-      output << std::endl;
-      thread_passed = 0;
-   }
-}
-
-
-// Build a hash_table, count all key with hash_len = 3, 4, 6, 12, 18
-// Then print a specific sequence's count
-template <int hash_len, typename Input_T>
-void 
-write_frequencies(Input_T const &input, std::ostream &output, char const *specific)
-{
-   typedef Key_T<hash_len>      HKey_T;
-   typedef __gnu_pbds::cc_hash_table   <
-                                 HKey_T,   // key type
-                                 uint,   // map type
-                                 HKey_T,   // hash functor
-                                 HKey_T   // equal_to functor
-                              >    HTable_T;
-
-   HTable_T local_table;   // private for each thread
-   if (omp_get_num_threads() > 1)
-      calculate_frequency<hash_len, true>(input, local_table);   // parallel hash
-   else
-      calculate_frequency<hash_len, false>(input, local_table);   // parallel hash
-
-   // Build hash key for searching
-   HKey_T printkey(specific);
-
-   // count how many matched for specific sequence
-   static uint total_matched = 0;
-   
-   {
-      // parallel look up
-      uint match = local_table[printkey];
-      #pragma omp atomic
-      total_matched += match;
-   }
-
-   // The last thread, reaching this code block, will print result
-   static int thread_passed = 0;
-   if (__sync_add_and_fetch(&thread_passed, 1) == omp_get_num_threads())
-   {
-      printkey.key[hash_len] = 0; // null terminated
-      boost::to_upper(printkey.key);
-
-      boost::format fmt("%1%\t%2%\n");
-      fmt % total_matched % printkey.key;
-      output << fmt;
-
-      thread_passed = 0;
-      total_matched = 0;
-   }
-}
-
-int 
-GetThreadCount()
-{
-   cpu_set_t cs;
-   CPU_ZERO(&cs);
-   sched_getaffinity(0, sizeof(cs), &cs);
-
-   int count = 0;
-   for (int i = 0; i < MAX_CORE; ++i)
-   {
-      if (CPU_ISSET(i, &cs))
-         ++count;
-   }
-   return count;
-}
-
-int 
-main()
-{
-   typedef std::vector<char> Input_T;
-   Input_T input;
-   input.reserve(256*1024*1024); // 256MB
-
-   char buffer[64];
-
-   // rule: read line-by-line
-   while (fgets(buffer, sizeof(buffer), stdin))
-   {
-      if(strncmp(buffer, ">THREE", 6) == 0)
-         break;
-   }
-
-   std::back_insert_iterator<Input_T> back_ite (input);
-   while (fgets(buffer, sizeof(buffer), stdin))
-   {
-      size_t sz = strlen(buffer);
-      if (buffer[sz -1] == '\n')
-         --sz;
-
-      std::copy(buffer, buffer + sz, back_ite);
-   }
-
-   std::ostringstream output[7];
-   #pragma omp parallel num_threads(GetThreadCount()) default(shared)
-   {
-      write_frequencies<18>( input, output[6], "ggtattttaatttatagt" );
-      write_frequencies<12>( input, output[5], "ggtattttaatt" );
-      write_frequencies< 6>( input, output[4], "ggtatt" );
-      write_frequencies< 4>( input, output[3], "ggta" );
-      write_frequencies< 3>( input, output[2], "ggt" );
-      write_frequencies< 2>( input, output[1] );
-      write_frequencies< 1>( input, output[0] );
-   }
-
-   foreach(std::ostringstream const& s, output)
-      std::cout << s.str();
-      
    return 0;
 }
-

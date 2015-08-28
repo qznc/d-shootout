@@ -2,10 +2,10 @@
    http://benchmarksgame.alioth.debian.org/
 
    contributed by Alexey Zolotov
-   without openmp, without assert
 */
 
 #include <re2.h>
+#include <assert.h>
 #include <iostream>
 #include <stdio.h>
 
@@ -42,10 +42,12 @@ int main(void)
 
     fseek(stdin, 0, SEEK_END);
     read_size = ftell(stdin);
+    assert(read_size > 0);
 
     buf = new char[read_size];
     rewind(stdin);
     read_size = fread(buf, 1, read_size, stdin);
+    assert(read_size);
 
     str.append(buf, read_size);
 
@@ -57,7 +59,9 @@ int main(void)
 
     out = str;
 
+    #pragma omp parallel sections
     {
+        #pragma omp section
         for (int i = 0; i < (int)(sizeof(pattern1) / sizeof(string)); i++) {
             int count = 0;
             RE2 pat(pattern1[i]);
@@ -69,7 +73,7 @@ int main(void)
 
             cout << pattern1[i] << " " << count << endl;
         }
-
+        #pragma omp section
         for (int i = 0; i < (int)(sizeof(pattern2) / sizeof(string)); i += 2) {
             RE2::GlobalReplace(&out, pattern2[i], pattern2[i + 1]);
         }
