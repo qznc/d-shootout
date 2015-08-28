@@ -1,6 +1,7 @@
 # D Speed Shootout
 
-Compare D to other languages like C.
+Compare D performance to other languages like C.
+See [example output](https://qznc.github.io/d-shootout/).
 
 ## Dependencies
 
