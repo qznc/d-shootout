@@ -8,6 +8,7 @@
 //   show higher level coding in D.
 
 import std.stdio, std.string;
+import std.algorithm: sort;
 
 int[string] gen_freq(string seq, size_t frame) {
     int[string] freqs;
@@ -38,7 +39,8 @@ void sort_seq(string seq, int length) {
         i++;
     }
 
-    foreach(p; pairs.sort)
+    sort(pairs);
+    foreach(p; pairs)
         writeln("%s %.3f", p.k, 100.0*p.v/n);
     writeln();
 }
