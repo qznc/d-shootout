@@ -68,7 +68,7 @@ void setupCommands(bool just_check)
     command(prog, "gcc", RUN_ARGS,
         "GCC -fopenmp -D_FILE_OFFSET_BITS=64 -I/usr/include/apr-1.0 PROG.c -o PROG.gcc.exe -lapr-1 -lgomp -lm");
     command(prog, "g++", RUN_ARGS,
-        "G++ -fopenmp PROG.cpp -o PROG.gcc.exe -lboost_system");
+        "G++ -fopenmp PROG.cpp -o PROG.g++.exe -lboost_system");
     command(prog, "dmd", RUN_ARGS,
         "DMD PROG.d -ofPROG.dmd.exe");
     command(prog, "gdc", RUN_ARGS,
@@ -81,7 +81,7 @@ void setupCommands(bool just_check)
     command(prog, "gcc", RUN_ARGS,
         "GCC -mfpmath=sse -msse3 -fopenmp PROG.c -o PROG.gcc.exe");
     command(prog, "g++", RUN_ARGS,
-        "G++ -mfpmath=sse -msse3 PROG.cpp -o PROG.gcc.exe");
+        "G++ -mfpmath=sse -msse3 PROG.cpp -o PROG.g++.exe");
     command(prog, "dmd", RUN_ARGS,
         "DMD PROG.d -ofPROG.dmd.exe");
     command(prog, "gdc", RUN_ARGS,
@@ -94,7 +94,7 @@ void setupCommands(bool just_check)
     command(prog, "gcc", RUN_ARGS,
         "GCC -fopenmp -include ../include/simple_hash3.h PROG.c -o PROG.gcc.exe");
     command(prog, "g++", RUN_ARGS,
-        "G++ PROG.cpp -o PROG.gcc.exe -Wl,--no-as-needed -lpthread");
+        "G++ -pthread PROG.cpp -o PROG.g++.exe -Wl,--no-as-needed");
     command(prog, "dmd", RUN_ARGS,
         "DMD PROG.d -ofPROG.dmd.exe");
     command(prog, "gdc", RUN_ARGS,
@@ -107,7 +107,7 @@ void setupCommands(bool just_check)
     command(prog, "gcc", RUN_ARGS,
         "GCC -D_GNU_SOURCE -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lm");
     command(prog, "g++", RUN_ARGS,
-        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.gcc.exe");
+        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe");
     command(prog, "dmd", RUN_ARGS,
         "DMD PROG.d -ofPROG.dmd.exe");
     command(prog, "gdc", RUN_ARGS,
@@ -120,7 +120,7 @@ void setupCommands(bool just_check)
     command(prog, "gcc", RUN_ARGS,
         "GCC -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lm");
     command(prog, "g++", RUN_ARGS,
-        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.gcc.exe");
+        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe");
     command(prog, "dmd", RUN_ARGS,
         "DMD PROG.d -ofPROG.dmd.exe");
     command(prog, "gdc", RUN_ARGS,
@@ -133,7 +133,7 @@ void setupCommands(bool just_check)
     command(prog, "gcc", RUN_ARGS,
         "GCC -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lgmp");
     command(prog, "g++", RUN_ARGS,
-        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.gcc.exe -lgmp -lgmpxx");
+        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe -lgmp -lgmpxx");
     command(prog, "dmd", RUN_ARGS,
         "DMD PROG.d -ofPROG.dmd.exe");
     command(prog, "gdc", RUN_ARGS,
@@ -146,7 +146,7 @@ void setupCommands(bool just_check)
     command(prog, "gcc", RUN_ARGS,
         "GCC -mfpmath=sse -msse2 -pthread -I/usr/include/tcl8.4 $(pkg-config --cflags --libs glib-2.0) PROG.c -o PROG.gcc.exe -ltcl8.4 -lglib-2.0");
     command(prog, "g++", RUN_ARGS,
-        "G++ -fopenmp -I/usr/local/src/re2/re2 PROG.cpp -o PROG.gcc.exe");
+        "G++ -fopenmp -I/usr/local/src/re2/re2 PROG.cpp -o PROG.g++.exe");
     command(prog, "dmd", RUN_ARGS,
         "DMD PROG.d -ofPROG.dmd.exe");
     command(prog, "gdc", RUN_ARGS,
@@ -159,7 +159,7 @@ void setupCommands(bool just_check)
     command(prog, "gcc", RUN_ARGS,
         "GCC -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lm");
     command(prog, "g++", RUN_ARGS,
-        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.gcc.exe");
+        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe");
     command(prog, "dmd", RUN_ARGS,
         "DMD PROG.d -ofPROG.dmd.exe");
     command(prog, "gdc", RUN_ARGS,
@@ -172,7 +172,7 @@ void setupCommands(bool just_check)
     command(prog, "gcc", RUN_ARGS,
         "GCC -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lm");
     command(prog, "g++", RUN_ARGS,
-        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.gcc.exe");
+        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe");
     command(prog, "dmd", RUN_ARGS,
         "DMD PROG.d -ofPROG.dmd.exe");
     command(prog, "gdc", RUN_ARGS,
@@ -185,7 +185,7 @@ void setupCommands(bool just_check)
     command(prog, "gcc", RUN_ARGS,
         "GCC -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lm");
     command(prog, "g++", RUN_ARGS,
-        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.gcc.exe");
+        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe");
     command(prog, "dmd", RUN_ARGS,
         "DMD PROG.d -ofPROG.dmd.exe");
     command(prog, "gdc", RUN_ARGS,

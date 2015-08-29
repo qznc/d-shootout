@@ -10,7 +10,7 @@ Of course, you need dmd, gdc, ldc and gcc.
 Various C/C++ benchmarks need some dependencies.
 For Ubuntu 14.04:
 
-    sudo apt-get install libapr1-dev libglib2.0-dev tcl8.4-dev
+    sudo apt-get install libapr1-dev libglib2.0-dev tcl8.4-dev libboost-system-dev
 
 ## Usage
 
