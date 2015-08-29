@@ -32,7 +32,7 @@ immutable CFLAGS = CFLAGS_GENERAL~" -std=c99";
 immutable CPPFLAGS = CFLAGS_GENERAL~" -std=c++11";
 immutable DMDFLAGS = "-O -release -inline -boundscheck=off";
 immutable GDCFLAGS = CFLAGS_GENERAL;
-immutable LDCFLAGS = CFLAGS_GENERAL;
+immutable LDCFLAGS = "-O -release -inline";
 
 string xpnd(string s, string prog) @property @safe pure nothrow
 {
@@ -41,7 +41,7 @@ string xpnd(string s, string prog) @property @safe pure nothrow
         .replace("G++", "g++ -pipe "~CPPFLAGS)
         .replace("DMD", "dmd "~DMDFLAGS)
         .replace("GDC", "gdc -pipe "~GDCFLAGS)
-        .replace("LDC", "ldc -pipe "~LDCFLAGS)
+        .replace("LDC", "ldc2 "~LDCFLAGS)
         .replace("PROG", prog);
 }
 
@@ -74,7 +74,7 @@ void setupCommands(bool just_check)
     command(prog, "gdc", RUN_ARGS,
         "GDC PROG.d -o PROG.gdc.exe");
     command(prog, "ldc", RUN_ARGS,
-        "LDC PROG.d -o PROG.ldc.exe");
+        "LDC PROG.d -ofPROG.ldc.exe");
 
     RUN_ARGS = just_check ? "3000" : "100000";
     prog = "fasta";
@@ -87,7 +87,7 @@ void setupCommands(bool just_check)
     command(prog, "gdc", RUN_ARGS,
         "GDC PROG.d -o PROG.gdc.exe");
     command(prog, "ldc", RUN_ARGS,
-        "LDC PROG.d -o PROG.ldc.exe");
+        "LDC PROG.d -ofPROG.ldc.exe");
 
     RUN_ARGS = "0 <PROG-input.txt";
     prog = "knucleotide";
@@ -100,7 +100,7 @@ void setupCommands(bool just_check)
     command(prog, "gdc", RUN_ARGS,
         "GDC PROG.d -o PROG.gdc.exe");
     command(prog, "ldc", RUN_ARGS,
-        "LDC PROG.d -o PROG.ldc.exe");
+        "LDC PROG.d -ofPROG.ldc.exe");
 
     RUN_ARGS = just_check ? "1000" : "16000";
     prog = "mandelbrot";
@@ -113,7 +113,7 @@ void setupCommands(bool just_check)
     command(prog, "gdc", RUN_ARGS,
         "GDC PROG.d -o PROG.gdc.exe");
     command(prog, "ldc", RUN_ARGS,
-        "LDC PROG.d -o PROG.ldc.exe");
+        "LDC PROG.d -ofPROG.ldc.exe");
 
     RUN_ARGS = just_check ? "100" : "2098";
     prog = "meteor";
@@ -126,7 +126,7 @@ void setupCommands(bool just_check)
     command(prog, "gdc", RUN_ARGS,
         "GDC PROG.d -o PROG.gdc.exe");
     command(prog, "ldc", RUN_ARGS,
-        "LDC PROG.d -o PROG.ldc.exe");
+        "LDC PROG.d -ofPROG.ldc.exe");
 
     RUN_ARGS = just_check ? "100" : "10000";
     prog = "pidigits";
@@ -139,7 +139,7 @@ void setupCommands(bool just_check)
     command(prog, "gdc", RUN_ARGS,
         "GDC PROG.d -o PROG.gdc.exe");
     command(prog, "ldc", RUN_ARGS,
-        "LDC PROG.d -o PROG.ldc.exe");
+        "LDC PROG.d -ofPROG.ldc.exe");
 
     RUN_ARGS = "0 <PROG-input.txt";
     prog = "regexdna";
@@ -152,7 +152,7 @@ void setupCommands(bool just_check)
     command(prog, "gdc", RUN_ARGS,
         "GDC PROG.d -o PROG.gdc.exe");
     command(prog, "ldc", RUN_ARGS,
-        "LDC PROG.d -o PROG.ldc.exe");
+        "LDC PROG.d -ofPROG.ldc.exe");
 
     RUN_ARGS = just_check ? "500000" : "50000000";
     prog = "nbody";
@@ -165,7 +165,7 @@ void setupCommands(bool just_check)
     command(prog, "gdc", RUN_ARGS,
         "GDC PROG.d -o PROG.gdc.exe");
     command(prog, "ldc", RUN_ARGS,
-        "LDC PROG.d -o PROG.ldc.exe");
+        "LDC PROG.d -ofPROG.ldc.exe");
 
     RUN_ARGS = "0 <PROG-input.txt";
     prog = "revcomp";
@@ -178,7 +178,7 @@ void setupCommands(bool just_check)
     command(prog, "gdc", RUN_ARGS,
         "GDC PROG.d -o PROG.gdc.exe");
     command(prog, "ldc", RUN_ARGS,
-        "LDC PROG.d -o PROG.ldc.exe");
+        "LDC PROG.d -ofPROG.ldc.exe");
 
     RUN_ARGS = just_check ? "550" : "5500";
     prog = "spectralnorm";
@@ -191,7 +191,7 @@ void setupCommands(bool just_check)
     command(prog, "gdc", RUN_ARGS,
         "GDC PROG.d -o PROG.gdc.exe");
     command(prog, "ldc", RUN_ARGS,
-        "LDC PROG.d -o PROG.ldc.exe");
+        "LDC PROG.d -ofPROG.ldc.exe");
 
     RUN_ARGS = just_check ? "5000" : "50000000";
     prog = "threadring";
@@ -204,7 +204,7 @@ void setupCommands(bool just_check)
     command(prog, "gdc", RUN_ARGS,
         "GDC PROG.d -o PROG.gdc.exe");
     command(prog, "ldc", RUN_ARGS,
-        "LDC PROG.d -o PROG.ldc.exe");
+        "LDC PROG.d -ofPROG.ldc.exe");
 }
 
 string firstLineExecuteShell(string cmd)
@@ -218,19 +218,9 @@ string firstLineExecuteShell(string cmd)
     return "no output";
 }
 
-string versionDMD()
+string compiler_version(string compiler)
 {
-    return firstLineExecuteShell("dmd --version");
-}
-
-string versionGCC()
-{
-    return firstLineExecuteShell("gcc --version");
-}
-
-string versionGDC()
-{
-    return firstLineExecuteShell("gdc --version");
+    return firstLineExecuteShell(compiler~" --version");
 }
 
 string lsbDescription()
@@ -315,7 +305,10 @@ RunResults allRuns(string compiler, string prog, string cmd_compile, string cmd_
 {
     auto ret = RunResults(compiler, prog, cmd_compile, cmd_exec);
     const compile = executeShell(cmd_compile);
-    if (compile.status != 0) return ret;
+    if (compile.status != 0) {
+        warning(cmd_compile, " ->", compile.status);
+        return ret;
+    }
     foreach(_; 0..RUN_COUNT) {
         ret.durations ~= timedRun(cmd_exec, prog).msecs();
     }
@@ -380,12 +373,16 @@ void generateWebsite(const RunResults[] results)
     f.writeln("<tr><th>OS</th><td>",lsbDescription(),"</td></tr>");
     f.writeln("<tr><th>CPU</th><td>",vendor()," ", processor(),"</td></tr>");
     f.writeln("<tr><th>Parallelism</th><td>",coresPerCPU()," cores, ", threadsPerCPU(), " threads</td></tr>");
-    f.writeln("<tr><th>DMD</th><td>",versionDMD(),"</td></tr>");
-    f.writeln("<tr><th>GCC</th><td>",versionGCC(),"</td></tr>");
-    f.writeln("<tr><th>GDC</th><td>",versionGDC(),"</td></tr>");
+    f.writeln("<tr><th>DMD</th><td>",compiler_version("dmd"),"</td></tr>");
+    f.writeln("<tr><th>GCC</th><td>",compiler_version("gcc"),"</td></tr>");
+    f.writeln("<tr><th>GDC</th><td>",compiler_version("gdc"),"</td></tr>");
+    f.writeln("<tr><th>LDC</th><td>",compiler_version("ldc2"),"</td></tr>");
     f.writeln("<tr><th>Runs</th><td>",RUN_COUNT,"</td></tr>");
     f.writeln("<tr><th>Time</th><td>", Clock.currTime().toISOExtString() ,"</td></tr>");
     f.writeln("</table>");
+    f.write("<footer><p>");
+    f.write("This benchmarking report was generated by <a href=\"https://github.com/qznc/d-shootout\">d-shootout</a>.");
+    f.write("</p></footer>");
     f.writeln("</body></html>");
 }
 
