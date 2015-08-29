@@ -202,8 +202,8 @@ class Soln {
       memset(&m_cells, val, N_CELL);
    }
 
-   char[] toString() {
-      char[] result;
+   override string toString() {
+      string result;
       for (int y = 0; y < N_ROW; y++) {
          for (int x = 0; x < N_COL; x++) {
             int val = m_cells[y][x];
@@ -308,7 +308,7 @@ class Board {
            m_maxSoln = new Soln(Soln.NO_PIECE), m_nSoln = (0);
    }
 
-   static bool badRegion(inout BitVec toFill, BitVec rNew)
+   static bool badRegion(ref BitVec toFill, BitVec rNew)
    {
       // grow empty region, until it doesn't change any more
       BitVec region;
@@ -787,7 +787,7 @@ class Piece {
 
 
 //-- Main ----------------------------
-int main(char[][] args) {
+int main(string[] args) {
    if (args.length > 2)
       return 1; // spec says this is an error
 
