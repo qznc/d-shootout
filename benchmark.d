@@ -196,9 +196,9 @@ void setupCommands(bool just_check)
     RUN_ARGS = just_check ? "5000" : "50000000";
     prog = "threadring";
     command(prog, "gcc", RUN_ARGS,
-        "GCC -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lm");
+        "GCC -pthread PROG.c -o PROG.gcc.exe");
     command(prog, "g++", RUN_ARGS,
-        "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.gcc.exe");
+        "G++ -pthread PROG.cpp -o PROG.g++.exe");
     command(prog, "dmd", RUN_ARGS,
         "DMD PROG.d -ofPROG.dmd.exe");
     command(prog, "gdc", RUN_ARGS,

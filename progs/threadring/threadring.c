@@ -10,6 +10,10 @@
 #include <string.h>
 #include <limits.h>
 
+#ifndef PTHREAD_STACK_MIN
+#define PTHREAD_STACK_MIN 16384
+#endif
+
 #define THREADS (503)
 
 
