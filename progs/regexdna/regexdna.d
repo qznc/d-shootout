@@ -1,45 +1,78 @@
+// Benchmark adapted from some c++ version from
 // The Computer Language Benchmarks Game
 // http://shootout.alioth.debian.org/
-// modified by bearophile, Dec 1 2007
 
 
-import std.stdio, std.string, std.cstream;
 import std.regex;
+import std.file, std.stdio, std.array, std.algorithm, std.range, std.typetuple;
 
-void main() {
-    char[][] sseq;
-    size_t n;
-    char[1 << 15] cbuf;
+version(backtracking)
+	alias bmatch matchFn;
+else version(thompson)	
+	alias match matchFn;
+else version(ct_regex)
+	alias match matchFn;
+else	
+	static assert(0, "Use -version=backtracking or -version=thompson or -version=ct_regex");
 
-    // auto seq = din.toString(); // SLOW
-    while ((n = din.readBlock(cbuf.ptr, cbuf.length)) > 0)
-        // sseq ~= cbuf[0 .. n][]; // slow
-        sseq ~= cbuf[0 .. n].dup;
-    auto seq = sseq.join("");
-    auto ilen = seq.length;
+alias TypeTuple!(
+    "agggtaaa|tttaccct",
+    "[cgt]gggtaaa|tttaccc[acg]",
+    "a[act]ggtaaa|tttacc[agt]t",
+    "ag[act]gtaaa|tttac[agt]ct",
+    "agg[act]taaa|ttta[agt]cct",
+    "aggg[acg]aaa|ttt[cgt]ccct",
+    "agggt[cgt]aa|tt[acg]accct",
+    "agggta[cgt]a|t[acg]taccct",
+    "agggtaa[cgt]|[acg]ttaccct",
+) patterns;
 
-    //seq = sub(seq, ">.*\n|\n", "", "g"); // SLOW!!
-    seq = split(seq, ">.*\n|\n").join("");
-    size_t clen = seq.length;
+alias TypeTuple!(
+    "B", "(c|g|t)", "D", "(a|g|t)", "H", "(a|c|t)", "K", "(g|t)",
+    "M", "(a|c)", "N", "(a|c|g|t)", "R", "(a|g)", "S", "(c|g)",
+    "V", "(a|c|g)", "W", "(a|t)", "Y", "(c|t)"
+) patterns2;
 
-    foreach(p; split("agggtaaa|tttaccct
-                      [cgt]gggtaaa|tttaccc[acg]
-                      a[act]ggtaaa|tttacc[agt]t
-                      ag[act]gtaaa|tttac[agt]ct
-                      agg[act]taaa|ttta[agt]cct
-                      aggg[acg]aaa|ttt[cgt]ccct
-                      agggt[cgt]aa|tt[acg]accct
-                      agggta[cgt]a|t[acg]taccct
-                      agggtaa[cgt]|[acg]ttaccct")) {
-        int m = 0;
-        foreach(_; seq.matchAll(regex(p)))
-            m++;
-        writefln(p, ' ', m);
+int main(string[] args)
+{
+    if(args.length < 2)
+    {
+        writeln("Usage regex-dna <FASTA-file>");
+        return 1;
     }
 
-    foreach(el; split("B(c|g|t) D(a|g|t) H(a|c|t) K(g|t) M(a|c)
-                       N(a|c|g|t) R(a|g) S(c|g) V(a|c|g) W(a|t) Y(c|t)"))
-        seq = seq.replaceAll(regex(el[0..1], "g"), el[1..$]);
+    auto stripper = regex(`>.*?\n|\n`, "g");
+    auto data = cast(string)std.file.read(args[1]);
+    auto stripped = replace!matchFn(data, stripper, "");
+    foreach(p; patterns)
+    {
+        version(ct_regex)
+            alias ctRegex!(p, "ig") reg;
+        else//auto since parsing takes miniscule amount of time
+            auto reg = regex(p, "ig");
+        int count = 0;
+        foreach(m; matchFn(stripped, reg))
+        {
+            count++;
+        }
+        writeln(p, " ", count);
+    }
 
-    writefln("\n", ilen, "\n", clen, "\n", seq.length);
+    auto replaced = stripped;
+    foreach(i, p; patterns2)
+    {
+        static if (!(i & 1))
+        {
+            version(ct_regex)
+                alias ctRegex!(p, "g") reg;
+            else//auto since parsing takes miniscule amount of time
+                auto reg = regex(p, "g");
+            replaced = replace!matchFn(replaced, reg, patterns2[i+1]);
+        }
+    }
+
+    writeln(data.length);
+    writeln(stripped.length);
+    writeln(replaced.length);
+    return 0;
 }
