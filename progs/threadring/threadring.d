@@ -1,88 +1,50 @@
-/*
- * The Computer Language Benchmarks Game
- * http://shootout.alioth.debian.org/
- *
- * Contributed by Premysl Hruby
- * convert to D by dualamd
- */
-
-module ThreadRing;
-
-import std.stdio : writeln;
+import std.concurrency : spawn, thisTid, Tid, receive, send;
 import std.conv : to;
+import std.stdio : writeln;
 
-import std.c.linux.pthread;
-import std.c.stdlib : exit;
+immutable uint NUM_THREADS = 503;
 
-const uint NUM_THREADS = 503;
-const uint STACK_SIZE = 16*1024;
+extern (C) void _exit(int exit_code);
 
-int   token = -1;
-bool finished = false;
-
-extern (C)
+void rec_ring(int i, Tid first, bool isFirst)
 {
-   pthread_mutex_t[NUM_THREADS]      mutex;
-   char[STACK_SIZE][NUM_THREADS]   stacks;
+    if (isFirst) first = thisTid;
+    Tid next = void;
+    if (i < NUM_THREADS) {
+        /// spawn threads recursively
+        //writeln("spawn ",i+1);
+        next = spawn(&rec_ring, i+1, first, false);
+    } else {
+        /// wrap around to form a ring
+        next = first;
+    }
 
-   void* thread_func( void *num )
-   {
-      int thisnode   = cast(int)num;
-      int nextnode   = ( thisnode + 1 ) % NUM_THREADS;
-
-      while (true)
-      {
-         pthread_mutex_lock( &(mutex[ thisnode ]) );
-
-         if ( token > 0 )
-         {
-            token--;
-            pthread_mutex_unlock( &(mutex[ nextnode ]) );
-         }
-         else
-         {
-             writeln( thisnode +1 );
-             exit(0);
-         }
-      }
-
-      return null;
-   }
+    /// receive tokens and pass them further
+    while (true) {
+        receive((int n) {
+            if (n > 0) {
+                //writeln("received ",n," at ",i);
+                next.send(n-1);
+            } else {
+                /// The End
+                writeln(i);
+                _exit(0);
+            }
+        });
+    }
 }
 
 int main(string[] args)
 {
-   try
-   {
-      token = to!int(args[1]);
-   }
-   catch (Exception e)
-   {
-      token = 1000; // test case
-   }
+    int N = 1000; /// for this N, we should write "498"
+    if (args.length != 2)
+        return 1; /// required by spec
+    else
+        N = to!int(args[1]);
 
-   pthread_t cthread;
-   pthread_attr_t stack_attr;
-
-   pthread_attr_init(&stack_attr);
-
-   for (int i = 0; i < NUM_THREADS; i++)
-   {
-      pthread_mutex_init( &(mutex[ i ]), null);
-      pthread_mutex_lock( &(mutex[ i ]) );
-
-      // manual set stack space & stack size for each thread
-      pthread_attr_setstack( &stack_attr, &(stacks[i]), STACK_SIZE );
-
-      pthread_create( &cthread, &stack_attr, &thread_func, cast(void*)i );
-   }
-
-   // start game
-   pthread_mutex_unlock( &(mutex[0]) );
-
-   // wait for result
-   pthread_join( cthread, null );
-
-   return 1;
+    auto first = spawn(&rec_ring, 1, thisTid, true);
+    first.send(N);
+    /// block the main thread indefinitely
+    receive((int n) { assert(false); });
+    assert(false);
 }
-
