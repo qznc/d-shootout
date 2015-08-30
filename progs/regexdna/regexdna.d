@@ -6,13 +6,14 @@
 import std.regex;
 import std.file, std.stdio, std.array, std.algorithm, std.range, std.typetuple;
 
+version = ct_regex;
 version(backtracking)
 	alias bmatch matchFn;
-else version(thompson)	
+else version(thompson)
 	alias match matchFn;
 else version(ct_regex)
 	alias match matchFn;
-else	
+else
 	static assert(0, "Use -version=backtracking or -version=thompson or -version=ct_regex");
 
 alias TypeTuple!(
@@ -42,7 +43,7 @@ int main(string[] args)
     }
 
     auto stripper = regex(`>.*?\n|\n`, "g");
-    auto data = cast(string)std.file.read(args[1]);
+    auto data = stdin.byLine.join("\n");
     auto stripped = replace!matchFn(data, stripper, "");
     foreach(p; patterns)
     {
