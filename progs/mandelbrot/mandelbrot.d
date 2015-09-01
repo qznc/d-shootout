@@ -18,19 +18,27 @@ double norm(cdouble C) pure nothrow @nogc @safe
     return C.re*C.re + C.im*C.im;
 }
 
+/// actual mandelbrot recurrence computation
+auto mandelbrot(double x, double y, int n) pure nothrow @safe @nogc
+{
+    auto Z = 0 + 0i;
+    auto C = 2*x/n - 1.5 + 2i*y/n - 1i;
+    for(auto i = 0; i < iter && norm(Z) <= lim; i++)
+        Z = Z*Z + C;
+    return Z;
+}
+
 char[] computeLine(ulong y, int n) pure nothrow @safe
 {
     char[] result;
-    result.reserve(n/8);
+    result.reserve(n/8+1);
     char bit_num = 0, byte_acc = 0;
+    // TODO unroll so we compute 1 byte per iteration instead of 1 bit
     foreach(x; 0..n)
     {
-        auto Z = 0 + 0i;
-        auto C = 2*cast(double)x/n - 1.5 + 2i*cast(double)y/n - 1i;
+        auto Z = mandelbrot(cast(double)x, cast(double)y, n);
 
-        for(auto i = 0; i < iter && norm(Z) <= lim; i++)
-            Z = Z*Z + C;
-
+        // convert to bit and pack into byte
         byte_acc = cast(byte) (byte_acc << 1) | ((norm(Z) > lim) ? 0x00:0x01);
 
         bit_num++;
@@ -40,10 +48,9 @@ char[] computeLine(ulong y, int n) pure nothrow @safe
             bit_num = byte_acc = 0;
         }
     }
-    byte_acc  <<= (8-n%8);
+    byte_acc <<= (8-n%8);
     result ~= byte_acc;
-    bit_num = byte_acc = 0;
-    return cast(char[]) result;
+    return result;
 }
 
 void main(string[] args)
