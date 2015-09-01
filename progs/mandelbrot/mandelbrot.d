@@ -13,13 +13,13 @@ import std.parallelism : parallel;
 immutable iter = 50;
 immutable lim = 2.0 * 2.0;
 
-double norm(cdouble C) pure nothrow @nogc @safe
+double norm(cdouble C) pure nothrow @safe
 {
     return C.re*C.re + C.im*C.im;
 }
 
 /// actual mandelbrot recurrence computation
-auto mandelbrot(double x, double y, int n) pure nothrow @safe @nogc
+auto mandelbrot(double x, double y, int n) pure nothrow @safe
 {
     auto Z = 0 + 0i;
     auto C = 2*x/n - 1.5 + 2i*y/n - 1i;
