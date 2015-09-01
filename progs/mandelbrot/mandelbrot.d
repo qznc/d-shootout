@@ -21,7 +21,7 @@ double norm(cdouble C) pure nothrow @nogc @safe
 char[] computeLine(ulong y, int n) pure nothrow @safe
 {
     char[] result;
-    result.capacity = n/8;
+    result.reserve(n/8);
     char bit_num = 0, byte_acc = 0;
     foreach(x; 0..n)
     {
