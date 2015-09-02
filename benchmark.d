@@ -12,7 +12,7 @@ import std.algorithm.iteration : splitter, uniq, map, sum;
 import std.algorithm.sorting : sort;
 import std.string : strip, replace;
 import std.range : drop;
-import std.file : SpanMode, dirEntries, chdir, getcwd, read;
+import std.file : SpanMode, dirEntries, chdir, getcwd, read, FileException;
 import std.conv : text;
 import std.datetime : StopWatch, TickDuration, Clock;
 import std.experimental.logger : log, warning, Logger;
@@ -308,10 +308,15 @@ TickDuration timedRun(string cmd, string prog)
     }
     // check output with reference
     auto postfix = quickly ? "-output-quickly.txt" : "-output.txt";
-    string reference = cast(string) read(prog~postfix);
-    if (reference != res.output) {
-        warning("output mismatch: ", cmd);
-        INVALID_BENCHMARK = "output mismatch: "~cmd;
+    try {
+        string reference = cast(string) read(prog~postfix);
+        if (reference != res.output) {
+            warning("output mismatch: ", cmd);
+            INVALID_BENCHMARK = "output mismatch: "~cmd;
+        }
+    } catch (FileException e) {
+        warning("reference output missing: ", cmd);
+        INVALID_BENCHMARK = "reference output missing: "~cmd;
     }
     return sw.peek();
 }
