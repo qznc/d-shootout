@@ -31,7 +31,7 @@ auto mandelbrot(double x, double y, int n) pure nothrow @safe
 char[] computeLine(ulong y, int n) pure nothrow @safe
 {
     char[] result;
-    result.reserve(n/8+1);
+    result.length = n/8;
     char bit_num = 0, byte_acc = 0;
     // TODO unroll so we compute 1 byte per iteration instead of 1 bit
     foreach(x; 0..n)
@@ -44,13 +44,13 @@ char[] computeLine(ulong y, int n) pure nothrow @safe
         bit_num++;
         if(bit_num == 8)
         {
-            result ~= byte_acc;
+            result[x/8] = byte_acc;
             bit_num = byte_acc = 0;
         }
     }
     if (n%8 != 0) {
         byte_acc <<= (8-n%8);
-        result ~= byte_acc;
+        result[n/8+1] = byte_acc;
     }
     return result;
 }
