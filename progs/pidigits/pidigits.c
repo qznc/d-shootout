@@ -60,6 +60,9 @@ int main(int argc, char **argv) {
          printf("\t:%u\n", i);
       eliminate_digit(d);
    }
+   ui r = 10 - (n%10);
+   while(r--) putchar(' ');
+   printf("\t:%u\n", n);
 
    return 0;
 }

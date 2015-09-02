@@ -1,11 +1,10 @@
 // transliterated from Mario Pernici's Python 3 program
 
-import std.stdio : writeln;
+import std.stdio : writefln;
 import std.bigint : BigInt;
-import std.format : format;
 import std.conv : to;
 
-void divmod(BigInt x, BigInt y, out BigInt q, out BigInt r) pure nothrow
+void divmod(BigInt x, BigInt y, out BigInt q, out BigInt r) pure
 {
     q = x / y;
     r = x % y;
@@ -37,10 +36,11 @@ int main(string[] args)
                 ns = ns*10 + t;
                 i += 1;
                 if (i % 10 == 0) {
-                    writeln("%010d\t:%d".format(ns, i));
+                    writefln("%10d\t:%d", ns, i);
                     ns = 0;
                 }
                 if (i >= N) {
+                    writefln("%-10d\t:%d", ns, i);
                     break;
                 }
                 a -= d*t;
