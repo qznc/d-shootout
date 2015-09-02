@@ -41,7 +41,7 @@ void sort_seq(string seq, int length) {
 
     sort(pairs);
     foreach(p; pairs)
-        writeln("%s %.3f", p.k, 100.0*p.v/n);
+        writefln("%s %.3f", p.k, 100.0*p.v/n);
     writeln();
 }
 
