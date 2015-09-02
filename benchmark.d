@@ -38,14 +38,16 @@ immutable LDCFLAGS = "-O -release -inline";
 bool quickly = false;
 string prog = "";
 
-string xpnd(string s, string prog) @property @safe pure nothrow
+string xpnd(string s, string prog) @property @safe nothrow
 {
+    string QUICKLY = quickly ? "-quickly" : "";
     return s
         .replace("GCC", "gcc -pipe "~CFLAGS)
         .replace("G++", "g++ -pipe "~CPPFLAGS)
         .replace("DMD", "dmd "~DMDFLAGS)
         .replace("GDC", "gdc -pipe "~GDCFLAGS)
         .replace("LDC", "ldc2 "~LDCFLAGS)
+        .replace("QUICKLY", QUICKLY)
         .replace("PROG", prog);
 }
 
@@ -82,7 +84,7 @@ void setupCommands()
             "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = quickly ? "3000" : "100000";
+    RUN_ARGS = quickly ? "1000" : "100000";
     p = "fasta";
     if (prog == "" || prog == p) {
         command(p, "gcc", RUN_ARGS,
@@ -97,7 +99,7 @@ void setupCommands()
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = "0 <PROG-input.txt";
+    RUN_ARGS = "0 <PROG-inputQUICKLY.txt";
     p = "knucleotide";
     if (prog == "" || prog == p) {
         command(p, "gcc", RUN_ARGS,
@@ -142,7 +144,7 @@ void setupCommands()
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = quickly ? "100" : "10000";
+    RUN_ARGS = quickly ? "27" : "10000";
     p = "pidigits";
     if (prog == "" || prog == p) {
         command(p, "gcc", RUN_ARGS,
@@ -157,7 +159,7 @@ void setupCommands()
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = "0 <PROG-input.txt";
+    RUN_ARGS = "0 <PROG-inputQUICKLY.txt";
     p = "regexdna";
     if (prog == "" || prog == p) {
         command(p, "gcc", RUN_ARGS,
@@ -172,7 +174,7 @@ void setupCommands()
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = quickly ? "500000" : "50000000";
+    RUN_ARGS = quickly ? "1000" : "50000000";
     p = "nbody";
     if (prog == "" || prog == p) {
         command(p, "gcc", RUN_ARGS,
@@ -187,7 +189,7 @@ void setupCommands()
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = "0 <PROG-input.txt";
+    RUN_ARGS = "0 <PROG-inputQUICKLY.txt";
     p = "revcomp";
     if (prog == "" || prog == p) {
         command(p, "gcc", RUN_ARGS,
@@ -202,7 +204,7 @@ void setupCommands()
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = quickly ? "550" : "5500";
+    RUN_ARGS = quickly ? "100" : "5500";
     p = "spectralnorm";
     if (prog == "" || prog == p) {
         command(p, "gcc", RUN_ARGS,
@@ -217,7 +219,7 @@ void setupCommands()
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = quickly ? "5000" : "50000000";
+    RUN_ARGS = quickly ? "1000" : "50000000";
     p = "threadring";
     if (prog == "" || prog == p) {
         command(p, "gcc", RUN_ARGS,
