@@ -1,9 +1,12 @@
-/*   The Computer Language Benchmarks Game
+/*
+   The Computer Language Benchmarks Game
    http://benchmarksgame.alioth.debian.org/
 
    contributed by Paolo Bonzini
    further optimized by Jason Garrett-Glaser
    OpenMP by The Anh Tran
+   10-11-2010, modified by The Anh Tran:
+      _ copy bit shift idea from C entry
 */
 
 #include <cassert>
@@ -13,25 +16,25 @@
 #include <sched.h>
 #include <memory.h>
 
-// need "-fopenmp" flag when compile
 #include <omp.h>
+#include <sys/types.h>
 
 #define L2_CACHE_LINE   64
-#define BYTE_A_TIME      L2_CACHE_LINE
-#define COLUMN_FETCH    (BYTE_A_TIME * 8)
+#define ALIGN         __attribute__ ((aligned(L2_CACHE_LINE)))
 
 
-typedef double   v2d   __attribute__ ((vector_size(16))); // vector of two doubles
+typedef unsigned char   byte;
+typedef double         v2d   __attribute__ ((vector_size(16)));
+typedef int32_t       v4i   __attribute__ ((vector_size(16)));
 
-const v2d v10   = { 1.0, 1.0 };
-const v2d v15   = { 1.5, 1.5 };
-const v2d v40   = { 4.0, 4.0 };
+const v2d v10      = { 1.0, 1.0 };
+const v2d v15      = { 1.5, 1.5 };
+const v2d v40      = { 4.0, 4.0 };
 
 v2d inv_2n;   // {2.0/N, 2.0/N}
-v2d inv_4n;   // {4.0/N, 4.0/N}
 
 
-int 
+int
 GetThreadCount()
 {
    cpu_set_t cs;
@@ -40,155 +43,85 @@ GetThreadCount()
 
    int count = 0;
    for (int i = 0; i < CPU_SETSIZE; ++i)
-   {
-      if (CPU_ISSET(i, &cs))
-         ++count;
-   }
+      count += CPU_ISSET(i, &cs);
+
    return count;
 }
 
 
-struct MB_Element
+void
+mandelbrot(int N, byte* data)
 {
-private:
-   v2d   Crv, Civ, Zrv, Ziv, Trv, Tiv;
-   
-public:
-   // Z1 is point [x, y],   Z2 is point [x+1, y]
-   // r = 3 <=> |Z2| <= 4   |Z1| <= 4
-   // r = 2 <=> |Z2| > 4   |Z1| <= 4
-   // r = 1 <=> |Z2| <= 4   |Z1| > 4
-   // r = 0 <=> |Z2| > 4    |Z1| > 4
-   int result;
-   
-   // construct 2 elements from C.real & C.img
-   // C.real = Coordinate.x * 2 / N -1.5
-   // C.img = Coordinate.y * 2 / N -1.0
-   MB_Element(int r, v2d cimg)
+   ALIGN int row_processed = 0;
+
+   #pragma omp parallel default(shared) num_threads(GetThreadCount())
    {
-      double tmp[2] = {r+1, r};
-      Crv = __builtin_ia32_loadupd(tmp);
-      
-      Crv = Crv * inv_2n - v15;
-      Civ = cimg;
-
-      Zrv = Crv;
-      Ziv = cimg;
-
-      Trv = Crv * Crv;
-      Tiv = cimg * cimg;
-
-      result = 3; // assume that 2 elements belong to MB set
-   }
-
-   // construct 2 elements, next to passed MB_Element object
-   // Passed object: Tuple(Z1 = {x, y}, Z2 = {x+1, y})
-   // Newly construct object: Tuple({x+2, y}, {x+3, y})
-   MB_Element(MB_Element const& o)
-   {
-      Crv = o.Crv + inv_4n;   // c2 = (c1+2)*N = c1*N + 2*N
-      Civ = o.Civ;
-      
-      Zrv = Crv;
-      Ziv = o.Ziv;
-      
-      Trv = Crv * Crv;
-      Tiv = o.Tiv;
-      
-      result = 3;
-   }
-
-   int
-   eval()
-   {
-      v2d ZZ = Zrv * Ziv;
-      Zrv = Trv - Tiv + Crv;
-      Ziv = ZZ + ZZ + Civ;
-      Trv = Zrv * Zrv;
-      Tiv = Ziv * Ziv;
-
-      // delta = (Trv + Tiv) <= 4.0 ? 0xff : 0x00
-      v2d delta = (v2d)__builtin_ia32_cmplepd( (Trv + Tiv), v40 );
-      // mask-out elements that goes outside MB set
-      result &= __builtin_ia32_movmskpd(delta);
-
-      return result;
-   }
-};
-
-void 
-mandelbrot(int N, char* data)
-{
-   // counter of each line, how many columns are processed
-   __attribute__ ((aligned(L2_CACHE_LINE))) int jobs[N];
-   memset(jobs, 0, sizeof(jobs));
-
-   #pragma omp parallel default(shared) firstprivate(data) num_threads(GetThreadCount())
-   {
-      // foreach line
-      for (int y = 0; y < N; ++y, data += (N >> 3)) 
+      int y = 0;
+      while ((y = __sync_fetch_and_add(&row_processed, 1)) < N)
       {
-         // Calculate C.img = y*2/N -1.0
+         byte* row_output = data + y * (N >> 3);
+
          v2d Civ = {y, y};
          Civ = Civ * inv_2n - v10;
 
-         // Divide task for each thread here:
-         // claim that me (this thread) will handle K-not-yet-process columns
-         // K/8 bytes output should fit cache line size.
-         int x;
-         while ((x = __sync_fetch_and_add(jobs + y, COLUMN_FETCH)) < N)
-         {
-            int limit = std::min(x +COLUMN_FETCH, N);
-            // unroll loop, evaluate 8 columns at once
-            for (; x < limit; x += 8)
+            for (int x = 0; x < N; x += 2)
             {
-               // each MB_Element represents 2 mandelbrot points
-               MB_Element   e1(x, Civ), e2(e1), e3(e2), e4(e3);
-               
-               int i = 1;
-               while ( (e1.result || e2.result || e3.result || e4.result) 
-                     && (i++ < 50) )
-               {
-                  e1.eval();
-                  e2.eval();
-                  e3.eval();
-                  e4.eval();
-               }   
-               
-               int byte_acc = (e1.result << 6)|(e2.result << 4)|(e3.result << 2)|e4.result;
-               data[x >> 3] = static_cast<char>(byte_acc);
-            } // end foreach (column)
+            v2d   Crv = {x+1, x};
+            Crv = Crv * inv_2n - v15;
+            v2d Zrv = Crv;
+            v2d Ziv = Civ;
+            v2d Trv = Crv * Crv;
+            v2d Tiv = Civ * Civ;
+
+            int result = 3; // assume that 2 elements belong to MB set
+            int i = 1;
+
+            while ( result && (i++ < 50) )
+            {
+               v2d ZZ = Zrv * Ziv;
+               Zrv = Trv - Tiv + Crv;
+               Ziv = ZZ + ZZ + Civ;
+               Trv = Zrv * Zrv;
+               Tiv = Ziv * Ziv;
+
+               // trv + tiv <= 4.0
+               v2d delta = (v2d)__builtin_ia32_cmplepd( (Trv + Tiv), v40 );
+               result = __builtin_ia32_movmskpd(delta);
+            }
+
+            {
+               int bit_shift = 6 - (x & 7);
+               row_output[x >> 3] |= static_cast<byte>(result << bit_shift);
+            }
          }
-      } // end foreach (line)
-   } // end parallel region
+      }
+   }
 }
 
 
-int 
+int
 main (int argc, char **argv)
 {
-   int N = (argc == 2) ? atoi(argv[1]) : 200;
+   const int N = (argc == 2) ? std::atoi(argv[1]) : 200;
    assert((N % 8) == 0);
-
    printf("P4\n%d %d\n", N, N);
-   int width_bytes = N >> 3;
 
    {
-      double t[2];
-      t[0] = t[1] = 2.0 / N;
-      inv_2n = __builtin_ia32_loadupd(t);
-      inv_4n = inv_2n + inv_2n;   // 4.0/N
+      double* p_iv = reinterpret_cast<double*>(&inv_2n);
+      p_iv[0] = p_iv[1] = 2.0 / N;
    }
 
-   char* data = 0;
-   assert(   posix_memalign(reinterpret_cast<void**>(&data), L2_CACHE_LINE, width_bytes * N)
+   const int bytes_count = (N >> 3) * N;
+   byte* data = 0;
+   assert(   posix_memalign(reinterpret_cast<void**>(&data), L2_CACHE_LINE, bytes_count)
          == 0);
+   memset(data, 0, bytes_count);
 
    mandelbrot(N, data);
 
-   fwrite( data, width_bytes, N, stdout);
+   fwrite( data, bytes_count, 1, stdout);
+   fflush(stdout);
    free(data);
 
    return 0;
 }
-

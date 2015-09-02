@@ -48,8 +48,10 @@ char[] computeLine(ulong y, int n) pure nothrow @safe
             bit_num = byte_acc = 0;
         }
     }
-    byte_acc <<= (8-n%8);
-    result ~= byte_acc;
+    if (n%8 != 0) {
+        byte_acc <<= (8-n%8);
+        result ~= byte_acc;
+    }
     return result;
 }
 

@@ -112,7 +112,7 @@ void setupCommands()
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = quickly ? "1000" : "16000";
+    RUN_ARGS = quickly ? "200" : "16000";
     p = "mandelbrot";
     if (prog == "" || prog == p) {
         command(p, "gcc", RUN_ARGS,
@@ -307,7 +307,8 @@ TickDuration timedRun(string cmd, string prog)
         return TickDuration.zero();
     }
     // check output with reference
-    auto reference = read(prog~"-output.txt");
+    auto postfix = quickly ? "-output-quickly.txt" : "-output.txt";
+    string reference = cast(string) read(prog~postfix);
     if (reference != res.output) {
         warning("output mismatch: ", cmd);
         INVALID_BENCHMARK = "output mismatch: "~cmd;
