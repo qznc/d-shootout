@@ -34,6 +34,10 @@ immutable DMDFLAGS = "-O -release -inline -boundscheck=off";
 immutable GDCFLAGS = CFLAGS_GENERAL;
 immutable LDCFLAGS = "-O -release -inline";
 
+// global runtime configuration
+bool quickly = false;
+string prog = "";
+
 string xpnd(string s, string prog) @property @safe pure nothrow
 {
     return s
@@ -61,170 +65,170 @@ void command(string prog, string compiler, string run_args, string cmd_compile)
         COMMANDS[prog][compiler] = cmds;
 }
 
-void setupCommands(string prog_cfg, bool just_check)
+void setupCommands()
 {
-    string RUN_ARGS = just_check ? "10" : "20";
-    string prog = "binarytrees";
-    if (prog_cfg == "" || prog_cfg == prog) {
-        command(prog, "gcc", RUN_ARGS,
+    string RUN_ARGS = quickly ? "10" : "20";
+    string p = "binarytrees";
+    if (prog == "" || prog == p) {
+        command(p, "gcc", RUN_ARGS,
             "GCC -fopenmp -D_FILE_OFFSET_BITS=64 -I/usr/include/apr-1.0 PROG.c -o PROG.gcc.exe -lapr-1 -lgomp -lm");
-        command(prog, "g++", RUN_ARGS,
+        command(p, "g++", RUN_ARGS,
             "G++ -fopenmp PROG.cpp -o PROG.g++.exe -lboost_system");
-        command(prog, "dmd", RUN_ARGS,
+        command(p, "dmd", RUN_ARGS,
             "DMD PROG.d -ofPROG.dmd.exe");
-        command(prog, "gdc", RUN_ARGS,
+        command(p, "gdc", RUN_ARGS,
             "GDC PROG.d -o PROG.gdc.exe");
-        command(prog, "ldc", RUN_ARGS,
+        command(p, "ldc", RUN_ARGS,
             "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = just_check ? "3000" : "100000";
-    prog = "fasta";
-    if (prog_cfg == "" || prog_cfg == prog) {
-        command(prog, "gcc", RUN_ARGS,
+    RUN_ARGS = quickly ? "3000" : "100000";
+    p = "fasta";
+    if (prog == "" || prog == p) {
+        command(p, "gcc", RUN_ARGS,
                 "GCC -mfpmath=sse -msse3 -fopenmp PROG.c -o PROG.gcc.exe");
-        command(prog, "g++", RUN_ARGS,
+        command(p, "g++", RUN_ARGS,
                 "G++ -mfpmath=sse -msse3 PROG.cpp -o PROG.g++.exe");
-        command(prog, "dmd", RUN_ARGS,
+        command(p, "dmd", RUN_ARGS,
                 "DMD PROG.d -ofPROG.dmd.exe");
-        command(prog, "gdc", RUN_ARGS,
-                "GDC PROG.d -o PROG.gdc.exe");
-        command(prog, "ldc", RUN_ARGS,
+        command(p, "gdc", RUN_ARGS,
+                "GDC PROG.d -o p.gdc.exe");
+        command(p, "ldc", RUN_ARGS,
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
     RUN_ARGS = "0 <PROG-input.txt";
-    prog = "knucleotide";
-    if (prog_cfg == "" || prog_cfg == prog) {
-        command(prog, "gcc", RUN_ARGS,
+    p = "knucleotide";
+    if (prog == "" || prog == p) {
+        command(p, "gcc", RUN_ARGS,
                 "GCC -fopenmp -include ../include/simple_hash3.h PROG.c -o PROG.gcc.exe");
-        command(prog, "g++", RUN_ARGS,
+        command(p, "g++", RUN_ARGS,
                 "G++ -pthread PROG.cpp -o PROG.g++.exe -Wl,--no-as-needed");
-        command(prog, "dmd", RUN_ARGS,
+        command(p, "dmd", RUN_ARGS,
                 "DMD PROG.d -ofPROG.dmd.exe");
-        command(prog, "gdc", RUN_ARGS,
+        command(p, "gdc", RUN_ARGS,
                 "GDC PROG.d -o PROG.gdc.exe");
-        command(prog, "ldc", RUN_ARGS,
+        command(p, "ldc", RUN_ARGS,
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = just_check ? "1000" : "16000";
-    prog = "mandelbrot";
-    if (prog_cfg == "" || prog_cfg == prog) {
-        command(prog, "gcc", RUN_ARGS,
+    RUN_ARGS = quickly ? "1000" : "16000";
+    p = "mandelbrot";
+    if (prog == "" || prog == p) {
+        command(p, "gcc", RUN_ARGS,
                 "GCC -D_GNU_SOURCE -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lm");
-        command(prog, "g++", RUN_ARGS,
+        command(p, "g++", RUN_ARGS,
                 "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe");
-        command(prog, "dmd", RUN_ARGS,
+        command(p, "dmd", RUN_ARGS,
                 "DMD PROG.d -ofPROG.dmd.exe");
-        command(prog, "gdc", RUN_ARGS,
+        command(p, "gdc", RUN_ARGS,
                 "GDC PROG.d -o PROG.gdc.exe");
-        command(prog, "ldc", RUN_ARGS,
+        command(p, "ldc", RUN_ARGS,
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = just_check ? "100" : "2098";
-    prog = "meteor";
-    if (prog_cfg == "" || prog_cfg == prog) {
-        command(prog, "gcc", RUN_ARGS,
+    RUN_ARGS = quickly ? "100" : "2098";
+    p = "meteor";
+    if (prog == "" || prog == p) {
+        command(p, "gcc", RUN_ARGS,
                 "GCC -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lm");
-        command(prog, "g++", RUN_ARGS,
+        command(p, "g++", RUN_ARGS,
                 "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe");
-        command(prog, "dmd", RUN_ARGS,
+        command(p, "dmd", RUN_ARGS,
                 "DMD PROG.d -ofPROG.dmd.exe");
-        command(prog, "gdc", RUN_ARGS,
+        command(p, "gdc", RUN_ARGS,
                 "GDC PROG.d -o PROG.gdc.exe");
-        command(prog, "ldc", RUN_ARGS,
+        command(p, "ldc", RUN_ARGS,
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = just_check ? "100" : "10000";
-    prog = "pidigits";
-    if (prog_cfg == "" || prog_cfg == prog) {
-        command(prog, "gcc", RUN_ARGS,
+    RUN_ARGS = quickly ? "100" : "10000";
+    p = "pidigits";
+    if (prog == "" || prog == p) {
+        command(p, "gcc", RUN_ARGS,
                 "GCC -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lgmp");
-        command(prog, "g++", RUN_ARGS,
+        command(p, "g++", RUN_ARGS,
                 "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe -lgmp -lgmpxx");
-        command(prog, "dmd", RUN_ARGS,
+        command(p, "dmd", RUN_ARGS,
                 "DMD PROG.d -ofPROG.dmd.exe");
-        command(prog, "gdc", RUN_ARGS,
+        command(p, "gdc", RUN_ARGS,
                 "GDC PROG.d -o PROG.gdc.exe");
-        command(prog, "ldc", RUN_ARGS,
+        command(p, "ldc", RUN_ARGS,
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
     RUN_ARGS = "0 <PROG-input.txt";
-    prog = "regexdna";
-    if (prog_cfg == "" || prog_cfg == prog) {
-        command(prog, "gcc", RUN_ARGS,
+    p = "regexdna";
+    if (prog == "" || prog == p) {
+        command(p, "gcc", RUN_ARGS,
                 "GCC -mfpmath=sse -msse2 -pthread -I/usr/include/tcl8.4 $(pkg-config --cflags --libs glib-2.0) PROG.c -o PROG.gcc.exe -ltcl8.4 -lglib-2.0");
-        command(prog, "g++", RUN_ARGS,
+        command(p, "g++", RUN_ARGS,
                 "G++ -fopenmp -I/usr/local/src/re2/re2 PROG.cpp -o PROG.g++.exe");
-        command(prog, "dmd", RUN_ARGS,
+        command(p, "dmd", RUN_ARGS,
                 "DMD PROG.d -ofPROG.dmd.exe");
-        command(prog, "gdc", RUN_ARGS,
+        command(p, "gdc", RUN_ARGS,
                 "GDC PROG.d -o PROG.gdc.exe");
-        command(prog, "ldc", RUN_ARGS,
+        command(p, "ldc", RUN_ARGS,
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = just_check ? "500000" : "50000000";
-    prog = "nbody";
-    if (prog_cfg == "" || prog_cfg == prog) {
-        command(prog, "gcc", RUN_ARGS,
+    RUN_ARGS = quickly ? "500000" : "50000000";
+    p = "nbody";
+    if (prog == "" || prog == p) {
+        command(p, "gcc", RUN_ARGS,
                 "GCC -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lm");
-        command(prog, "g++", RUN_ARGS,
+        command(p, "g++", RUN_ARGS,
                 "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe");
-        command(prog, "dmd", RUN_ARGS,
+        command(p, "dmd", RUN_ARGS,
                 "DMD PROG.d -ofPROG.dmd.exe");
-        command(prog, "gdc", RUN_ARGS,
+        command(p, "gdc", RUN_ARGS,
                 "GDC PROG.d -o PROG.gdc.exe");
-        command(prog, "ldc", RUN_ARGS,
+        command(p, "ldc", RUN_ARGS,
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
     RUN_ARGS = "0 <PROG-input.txt";
-    prog = "revcomp";
-    if (prog_cfg == "" || prog_cfg == prog) {
-        command(prog, "gcc", RUN_ARGS,
+    p = "revcomp";
+    if (prog == "" || prog == p) {
+        command(p, "gcc", RUN_ARGS,
                 "GCC -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lm");
-        command(prog, "g++", RUN_ARGS,
+        command(p, "g++", RUN_ARGS,
                 "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe");
-        command(prog, "dmd", RUN_ARGS,
+        command(p, "dmd", RUN_ARGS,
                 "DMD PROG.d -ofPROG.dmd.exe");
-        command(prog, "gdc", RUN_ARGS,
+        command(p, "gdc", RUN_ARGS,
                 "GDC PROG.d -o PROG.gdc.exe");
-        command(prog, "ldc", RUN_ARGS,
+        command(p, "ldc", RUN_ARGS,
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = just_check ? "550" : "5500";
-    prog = "spectralnorm";
-    if (prog_cfg == "" || prog_cfg == prog) {
-        command(prog, "gcc", RUN_ARGS,
+    RUN_ARGS = quickly ? "550" : "5500";
+    p = "spectralnorm";
+    if (prog == "" || prog == p) {
+        command(p, "gcc", RUN_ARGS,
                 "GCC -mfpmath=sse -msse2 -fopenmp PROG.c -o PROG.gcc.exe -lm");
-        command(prog, "g++", RUN_ARGS,
+        command(p, "g++", RUN_ARGS,
                 "G++ -mfpmath=sse -msse2 -fopenmp PROG.cpp -o PROG.g++.exe");
-        command(prog, "dmd", RUN_ARGS,
+        command(p, "dmd", RUN_ARGS,
                 "DMD PROG.d -ofPROG.dmd.exe");
-        command(prog, "gdc", RUN_ARGS,
+        command(p, "gdc", RUN_ARGS,
                 "GDC PROG.d -o PROG.gdc.exe");
-        command(prog, "ldc", RUN_ARGS,
+        command(p, "ldc", RUN_ARGS,
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 
-    RUN_ARGS = just_check ? "5000" : "50000000";
-    prog = "threadring";
-    if (prog_cfg == "" || prog_cfg == prog) {
-        command(prog, "gcc", RUN_ARGS,
+    RUN_ARGS = quickly ? "5000" : "50000000";
+    p = "threadring";
+    if (prog == "" || prog == p) {
+        command(p, "gcc", RUN_ARGS,
                 "GCC -pthread PROG.c -o PROG.gcc.exe");
-        command(prog, "g++", RUN_ARGS,
+        command(p, "g++", RUN_ARGS,
                 "G++ -pthread PROG.cpp -o PROG.g++.exe");
-        command(prog, "dmd", RUN_ARGS,
+        command(p, "dmd", RUN_ARGS,
                 "DMD PROG.d -ofPROG.dmd.exe");
-        command(prog, "gdc", RUN_ARGS,
+        command(p, "gdc", RUN_ARGS,
                 "GDC PROG.d -o PROG.gdc.exe");
-        command(prog, "ldc", RUN_ARGS,
+        command(p, "ldc", RUN_ARGS,
                 "LDC PROG.d -ofPROG.ldc.exe");
     }
 }
@@ -410,8 +414,6 @@ void generateWebsite(const RunResults[] results)
 
 void main(string[] args)
 {
-    bool quickly = false;
-    string prog;
     auto helpInfo = getopt(args,
         "quickly", "quick runs to check everything works", &quickly,
         "runs|r",  "number of runs (default=5)", &RUN_COUNT,
@@ -422,7 +424,7 @@ void main(string[] args)
                 helpInfo.options);
         return;
     }
-    setupCommands(prog, quickly);
+    setupCommands();
     const results = benchmark();
     if (RUN_COUNT < 5) INVALID_BENCHMARK = "Need at least 5 runs.";
     if (quickly) INVALID_BENCHMARK = "Ran --quickly.";
