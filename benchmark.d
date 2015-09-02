@@ -297,7 +297,7 @@ RunResults[] benchmark()
     return results;
 }
 
-TickDuration timedRun(string cmd, string prog)
+TickDuration timedRun(string cmd, string prog, out bool output_mismatch)
 {
     StopWatch sw;
     sw.start();
@@ -315,6 +315,7 @@ TickDuration timedRun(string cmd, string prog)
         if (reference != res.output) {
             warning("output mismatch: ", cmd);
             INVALID_BENCHMARK = "output mismatch: "~cmd;
+            output_mismatch = true;
         }
     } catch (FileException e) {
         warning("reference output missing: ", cmd);
@@ -326,6 +327,7 @@ TickDuration timedRun(string cmd, string prog)
 struct RunResults {
     string compiler, prog, cmd_compile, cmd_exec;
     long[] durations;
+    bool output_mismatch = false;
     public this(string compiler, string prog, string cmd_compile, string cmd_exec)
     {
         this.compiler = compiler;
@@ -344,7 +346,7 @@ RunResults allRuns(string compiler, string prog, string cmd_compile, string cmd_
         return ret;
     }
     foreach(_; 0..RUN_COUNT) {
-        ret.durations ~= timedRun(cmd_exec, prog).msecs();
+        ret.durations ~= timedRun(cmd_exec, prog, ret.output_mismatch).msecs();
     }
     ret.durations.sort();
     //writeln(compiler, ret.durations);
@@ -382,14 +384,20 @@ void generateWebsite(const RunResults[] results)
             foreach(res; results) {
                 if (res.compiler != compiler || res.prog != prog) continue;
                 const durs = res.durations;
-                f.write("<td title=\"", durs, "\"");
+                f.write("<td title=\"", durs);
+                if (res.output_mismatch)
+                    f.write(" output mismatch!");
+                f.write("\"");
                 if (durs.length == 0) {
                     f.write(" class=\"no-runs\">no runs");
                 } else {
                     if (durs[$-1] == 0) {
                         f.write(" class=\"zero-time\">runs failed");
                     } else {
-                        f.write(">");
+                        if (res.output_mismatch)
+                            f.write(" class=\"output-mismatch\">");
+                        else
+                            f.write(">");
                         f.write(durs[0], " / ");
                         f.write(avg(durs), " / ", median(durs), " ±");
                         f.write("%2.1f".format(stddev(durs)));

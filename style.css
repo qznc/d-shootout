@@ -7,5 +7,6 @@ h1, h2, th { font-weight: normal; }
 th { color: #118; }
 td.no-runs { color: #aaa; }
 td.zero-time { color: #c99; }
+td.output-mismatch { color: #800; }
 
 .invalid-msg { background-color: #faa; color: #300; border: 3px solid #a22; padding: 1em; margin: 1em auto; width: 50%; }
