@@ -32,7 +32,7 @@ immutable CFLAGS = CFLAGS_GENERAL~" -std=c99";
 immutable CPPFLAGS = CFLAGS_GENERAL~" -std=c++11";
 immutable DMDFLAGS = "-O -release -inline -boundscheck=off";
 immutable GDCFLAGS = CFLAGS_GENERAL;
-immutable LDCFLAGS = "-O -release -inline";
+immutable LDCFLAGS = "-O -release -inline -boundscheck=off -mcpu=native";
 
 // global runtime configuration
 bool quickly = false;
@@ -46,7 +46,7 @@ string xpnd(string s, string prog) @property @safe nothrow
         .replace("G++", "g++ -pipe "~CPPFLAGS)
         .replace("DMD", "dmd "~DMDFLAGS)
         .replace("GDC", "gdc -pipe "~GDCFLAGS)
-        .replace("LDC", "ldc2 "~LDCFLAGS)
+        .replace("LDC", "ldmd2 "~LDCFLAGS)
         .replace("QUICKLY", QUICKLY)
         .replace("PROG", prog);
 }
