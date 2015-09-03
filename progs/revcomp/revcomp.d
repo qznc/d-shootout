@@ -34,7 +34,7 @@ void main() {
     foreach(line; stdin.byLine)
         if (line[0] == '>' || line[0] == ';') {
             show(seq, tab);
-            writef(line);
+            writefln(line);
             seq.length = 0;
         } else
             seq ~= line.idup;

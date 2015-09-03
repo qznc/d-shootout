@@ -43,7 +43,7 @@ int main(string[] args)
     }
 
     auto stripper = regex(`>.*?\n|\n`, "g");
-    auto data = stdin.byLine.join("\n");
+    auto data = stdin.byLineCopy(KeepTerminator.yes).join();
     auto stripped = replace!matchFn(data, stripper, "");
     foreach(p; patterns)
     {
@@ -72,6 +72,7 @@ int main(string[] args)
         }
     }
 
+    writeln();
     writeln(data.length);
     writeln(stripped.length);
     writeln(replaced.length);

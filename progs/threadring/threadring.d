@@ -1,6 +1,6 @@
 import std.concurrency : spawn, thisTid, Tid, receive, send;
 import std.conv : to;
-import std.stdio : writeln;
+import std.stdio : writeln, stdout;
 
 immutable uint NUM_THREADS = 503;
 
@@ -27,7 +27,8 @@ void rec_ring(int i, Tid first, bool isFirst)
                 next.send(n-1);
             } else {
                 /// The End
-                writeln(i);
+                stdout.writeln(i);
+                stdout.flush();
                 _exit(0);
             }
         });
