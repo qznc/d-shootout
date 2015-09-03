@@ -21,7 +21,7 @@ void main(char[][] args)
         eval_AtA_times_u(v,u,w);
     }
 
-    foreach(int i, double vi; v)
+    foreach(int i, ref double vi; v)
     {
         vBv += u[i] * vi;
         vv  += vi * vi;
@@ -37,7 +37,7 @@ void eval_AtA_times_u(double[] u, double[] v, double[] w)
 
 void eval_A_times_u(double[] u, double[] Au)
 {
-    foreach(int i, double Aui; Au)
+    foreach(int i, ref double Aui; Au)
     {
         Aui = 0.0;
         foreach(int j, double uj; u)
@@ -49,7 +49,7 @@ void eval_A_times_u(double[] u, double[] Au)
 
 void eval_At_times_u(double[] u, double[] Au)
 {
-    foreach(int i, double Aui; Au)
+    foreach(int i, ref double Aui; Au)
     {
         Aui = 0.0;
         foreach(int j, double uj; u)

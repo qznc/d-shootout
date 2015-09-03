@@ -41,7 +41,7 @@ public:
         double py = 0.0;
         double pz = 0.0;
 
-        foreach(Body i; bodies)
+        foreach(ref Body i; bodies)
         {
             px += i.vx * i.mass;
             py += i.vy * i.mass;
@@ -55,10 +55,10 @@ public:
     {
         double dx, dy, dz, distance, mag, im, jm;
 
-        foreach(int idx, Body i; bodies)
+        foreach(int idx, ref Body i; bodies)
         {
             im = i.mass;
-            foreach(Body j; bodies[idx + 1 .. $])
+            foreach(ref Body j; bodies[idx + 1 .. $])
             {
                 jm = j.mass;
 
@@ -79,7 +79,7 @@ public:
             }
         }
 
-        foreach(Body i; bodies)
+        foreach(ref Body i; bodies)
         {
             i.x += dt * i.vx;
             i.y += dt * i.vy;
@@ -91,12 +91,12 @@ public:
     {
         double dx, dy, dz, im, e = 0.0;
 
-        foreach(int idx, Body i; bodies)
+        foreach(int idx, ref Body i; bodies)
         {
             im = i.mass;
             e += 0.5 * im * (i.vx * i.vx + i.vy * i.vy + i.vz * i.vz);
 
-            foreach(Body j; bodies[idx + 1 .. $])
+            foreach(ref Body j; bodies[idx + 1 .. $])
             {
                 dx = i.x - j.x;
                 dy = i.y - j.y;
