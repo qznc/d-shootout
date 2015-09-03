@@ -365,7 +365,7 @@ void generateWebsite(const RunResults[] results)
         f.writeln("<p class=\"invalid-msg\"><strong>Benchmark is invalid:</strong> ", INVALID_BENCHMARK, "</p>");
     }
     f.writeln("<h2>Timing Overview</h2>");
-    f.writeln("<p>Format is \"fastest / average / median ±standard deviation\", each in milliseconds.</p>");
+    f.writeln("<p>Format is \"fastest / median / average ±standard deviation\", each in milliseconds.</p>");
     f.writeln("<table><tr>");
     f.write("<td></td>");
     auto compilers = results.map!"a.compiler".uniq.array;
@@ -399,7 +399,7 @@ void generateWebsite(const RunResults[] results)
                         else
                             f.write(">");
                         f.write(durs[0], " / ");
-                        f.write(avg(durs), " / ", median(durs), " ±");
+                        f.write(median(durs), " / ", avg(durs), " ±");
                         f.write("%2.1f".format(stddev(durs)));
                     }
                 }
@@ -410,6 +410,9 @@ void generateWebsite(const RunResults[] results)
         f.writeln("</tr>");
     }
     f.writeln("</table>");
+    f.writeln("<p>If you see \"no runs\", then compilation failed.
+        If you see \"runs failed\", then benchmark execution failed.
+        If the numbers are slightly red, then the output was wrong.</p>");
     f.writeln("<h2>Test Environment</h2>");
     f.writeln("<table>");
     f.writeln("<tr><th>OS</th><td>",lsbDescription(),"</td></tr>");
