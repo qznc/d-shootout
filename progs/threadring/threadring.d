@@ -4,7 +4,10 @@ import std.stdio : writeln, stdout;
 
 immutable uint NUM_THREADS = 503;
 
-extern (C) void _exit(int exit_code);
+extern (C) {
+    void _exit(int exit_code);
+    int sched_setaffinity(int pid, size_t cpusetsize, int[4]* mask);
+}
 
 void rec_ring(int i, Tid first, bool isFirst)
 {
@@ -42,6 +45,9 @@ int main(string[] args)
         return 1; /// required by spec
     else
         N = to!int(args[1]);
+
+    int[4] cpu_set_t;
+    sched_setaffinity(0, 0, &cpu_set_t);
 
     auto first = spawn(&rec_ring, 1, thisTid, true);
     first.send(N);
