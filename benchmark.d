@@ -308,18 +308,21 @@ TickDuration timedRun(string cmd, string prog, out bool output_mismatch)
         INVALID_BENCHMARK = "run failed: "~cmd;
         return TickDuration.zero();
     }
-    // check output with reference
-    auto postfix = quickly ? "-output-quickly.txt" : "-output.txt";
-    try {
-        string reference = cast(string) read(prog~postfix);
-        if (reference != res.output) {
-            warning("output mismatch: ", cmd);
-            INVALID_BENCHMARK = "output mismatch: "~cmd;
-            output_mismatch = true;
+    if (quickly) {
+        // check output with reference
+        // TODO check output for real run or not?
+        auto postfix = quickly ? "-output-quickly.txt" : "-output.txt";
+        try {
+            string reference = cast(string) read(prog~postfix);
+            if (reference != res.output) {
+                warning("output mismatch: ", cmd);
+                INVALID_BENCHMARK = "output mismatch: "~cmd;
+                output_mismatch = true;
+            }
+        } catch (FileException e) {
+            warning("reference output missing: ", cmd);
+            INVALID_BENCHMARK = "reference output missing: "~cmd;
         }
-    } catch (FileException e) {
-        warning("reference output missing: ", cmd);
-        INVALID_BENCHMARK = "reference output missing: "~cmd;
     }
     return sw.peek();
 }
