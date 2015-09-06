@@ -1,2 +1,5 @@
 index.html
 benchmarksgame
+progs/knucleotide/knucleotide-input.txt
+progs/regexdna/regexdna-input.txt
+progs/revcomp/revcomp-input.txt

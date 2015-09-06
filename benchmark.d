@@ -281,9 +281,29 @@ real stddev(T)(T[] nums) pure nothrow {
     return sqrt(variance);
 }
 
+/// Build all programs
+void buildAll()
+{
+    foreach(prog, compilers; COMMANDS) {
+        foreach(compiler, cmds; compilers) {
+            const cwd = getcwd();
+            scope(exit) chdir(cwd);
+            chdir("progs/"~prog);
+            const compile = executeShell(cmds.compile);
+            if (compile.status != 0) {
+                warning(cmds.compile, " ->", compile.status);
+            }
+        }
+    }
+    executeShell("progs/fasta/fasta.gcc.exe 25000000 >progs/knucleotide/knucleotide-input.txt");
+    executeShell("progs/fasta/fasta.gcc.exe 5000000 >progs/regexdna/regexdna-input.txt");
+    executeShell("progs/fasta/fasta.gcc.exe 25000000 >progs/revcomp/revcomp-input.txt");
+}
+
 /// Run all the benchmarks
 RunResults[] benchmark()
 {
+    buildAll();
     RunResults[] results;
     foreach(prog, compilers; COMMANDS) {
         foreach(compiler, cmds; compilers) {
@@ -343,11 +363,6 @@ struct RunResults {
 RunResults allRuns(string compiler, string prog, string cmd_compile, string cmd_exec)
 {
     auto ret = RunResults(compiler, prog, cmd_compile, cmd_exec);
-    const compile = executeShell(cmd_compile);
-    if (compile.status != 0) {
-        warning(cmd_compile, " ->", compile.status);
-        return ret;
-    }
     foreach(_; 0..RUN_COUNT) {
         ret.durations ~= timedRun(cmd_exec, prog, ret.output_mismatch).msecs();
     }
