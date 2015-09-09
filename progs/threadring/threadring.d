@@ -1,36 +1,45 @@
 import std.conv : to;
-import std.stdio : writeln, stdout;
-import core.sync.condition : Condition, Mutex;
+import std.stdio : writeln;
 import core.thread : ThreadGroup, Thread;
 
 immutable uint NUM_THREADS = 503;
-immutable uint STACK_SIZE = 16384;
+immutable uint STACK_SIZE = 32 * 1024;
+
+struct pthread_mutex_t { byte[16]x; }
 
 extern (C) {
     void _exit(int exit_code);
     int sched_setaffinity(int pid, size_t cpusetsize, int[4]* mask);
+    int pthread_mutex_lock(pthread_mutex_t *mutex);
+    int pthread_mutex_unlock(pthread_mutex_t *mutex);
+    int pthread_mutex_init(pthread_mutex_t *mutex, void *attr);
 }
 
-__gshared int[NUM_THREADS+1] data;
+__gshared pthread_mutex_t mutex[NUM_THREADS];
+__gshared int data[NUM_THREADS];
 
-void delegate() threadDelegate(int i, Condition curr, Condition next)
+void thread(int num)
 {
-    return () {
-        while (true) {
-            synchronized (curr.mutex) { curr.wait(); }
-            auto t = data[i-1];
-            //writeln("at ",i, " received ",t);
-            if (t > 0) {
-                data[i%NUM_THREADS] = t-1;
-                synchronized (next.mutex) { next.notify(); }
-            } else {
-                /// The End
-                stdout.writeln(i);
-                stdout.flush();
-                _exit(0);
-            }
-        }
-    };
+   int l = num;
+   int r = (l+1) % NUM_THREADS;
+
+   while(true) {
+      pthread_mutex_lock(&mutex[l]);
+      int token = data[l];
+      writeln("received ", token, " at ", l+1);
+      if (token > 0) {
+          data[r] = token - 1;
+          pthread_mutex_unlock(&mutex[r]);
+      } else {
+          writeln(l+1);
+          _exit(0);
+          assert(false);
+      }
+   }
+}
+
+void delegate() do_thread(int i) {
+    return (){ thread(i); };
 }
 
 int main(string[] args)
@@ -44,24 +53,20 @@ int main(string[] args)
     int[4] cpu_set_t;
     sched_setaffinity(0, 0, &cpu_set_t);
 
-    Condition curr = void;
-    Condition next = new Condition(new Mutex);
-    Condition first = next;
-
     auto grp = new ThreadGroup;
     foreach(i; 0..NUM_THREADS) {
-        curr = next;
-        next = (i == NUM_THREADS-1) ? first : new Condition(new Mutex);
-        auto thread = new Thread(threadDelegate(i+1, curr, next), STACK_SIZE);
+        pthread_mutex_init(&mutex[i], null);
+        pthread_mutex_lock(&mutex[i]);
+        auto thread = new Thread(do_thread(i), STACK_SIZE);
         grp.add(thread);
         thread.start();
-        //if (i%20 == 0) writeln("created ",i);
+        writeln("started ",i+1);
     }
 
     /// start the show
-    //writeln("start show");
+    writeln("start show with ", N, " at ", 1);
     data[0] = N;
-    synchronized (first.mutex) { first.notify(); }
+    pthread_mutex_unlock(&mutex[0]);
 
     /// wait for the end
     grp.joinAll();
